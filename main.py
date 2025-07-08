@@ -1,47 +1,50 @@
-from fastapi import FastAPI, HTTPException, Query, Request, Body
+from fastapi import FastAPI, Request, Query, Body, HTTPException
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from typing import Optional
-import requests
+import requests, uuid, os, json, re, traceback
+from datetime import datetime
 import psycopg2
-from sentence_transformers import SentenceTransformer
 import numpy as np
-import json
-import uuid
-import os
+from sentence_transformers import SentenceTransformer
 from apscheduler.schedulers.background import BackgroundScheduler
 from supabase import create_client, Client
-from pydantic import BaseModel
-from datetime import datetime
+from dotenv import load_dotenv
 
-
+load_dotenv()
 app = FastAPI()
 
-# ---------- Supabase Hardcoded Credentials ----------
+# Supabase setup
+supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-# ---------- Embedding Model ----------
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# ---------- PostgreSQL Connection (Vector DB) ----------
+# DB setup
 conn = psycopg2.connect(
-    host="aws-0-ap-south-1.pooler.supabase.com",
-    database="postgres",
-    user="postgres.yqozjepvbdcqekacnikp",
-    password="SaiTej13@#",
-    port="5432"
+    host=os.getenv("POSTGRES_HOST"),
+    database=os.getenv("POSTGRES_DB"),
+    user=os.getenv("POSTGRES_USER"),
+    password=os.getenv("POSTGRES_PASSWORD"),
+    port=os.getenv("POSTGRES_PORT")
 )
 cursor = conn.cursor()
 
-scheduler = BackgroundScheduler()
+# Embedding model
+model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# ---------- Helper Functions ----------
-def serialize_embedding(embedding):
-    return embedding.tolist() if isinstance(embedding, np.ndarray) else embedding
+# OAuth + Gemini
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+HUBSPOT_CLIENT_ID = os.getenv("HUBSPOT_CLIENT_ID")
+HUBSPOT_CLIENT_SECRET = os.getenv("HUBSPOT_CLIENT_SECRET")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
+def serialize_embedding(embedding): return embedding.tolist()
 
-# ---------- Routes ----------
 @app.get("/")
-def home():
-    return {"message": "✅ Supabase + FastAPI backend running"}
+def home(): return {"message": "✅ Backend is running"}
+
+@app.get("/")
+def home(): return {"message": "✅ Backend is running"}
 
 @app.get("/gmail/thread/{thread_id}")
 def get_gmail_thread(thread_id: str, token: str = Query(...)):
